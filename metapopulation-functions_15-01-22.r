@@ -74,15 +74,28 @@ return( abs(ki)/(1+(abs(ki))) )
 nllKi <- function(params, dat, dmat){
 ## set nll to 0
 nll <- 0
+## take the column names from the transitions to data to track the season
+## substring of just the season id (sp, su, au)
+season <- substr( colnames(dat), 5, 6 )
 	## to estimate C0 and L
 	for(i in 1:(ncol(dat)-1)){
 	nll.gen <- 0
+	## pick the C0 value to use based on the season transition
+	if( season[i]=="sp" & season[i+1]=="su" ){
+	C0pos <- 1
+	}
+	if( season[i]=="su" & season[i+1]=="au" ){
+	C0pos <- 2
+	}
+	if( season[i]=="au" & season[i+1]=="sp" ){
+	C0pos <- 3
+	}
 		for(k in 1:length(dat[,i])){
 		## if there is a recording for the burrow
 		if( !is.na(dat[k,i]) ){
 		## if the burrow is current unoccupied, we want ki
 			if( dat[k,i]==0 ){
-			ki <- findKi( dat[,i], dmat, params, i )
+			ki <- findKi( dat[,i], dmat, c(params[C0pos],params[4]), i )
 			Ci <- ki2Ci( ki )
 			#print(ki)
 				## if there is a recording for the same burrow the next generation
@@ -162,7 +175,7 @@ return( -(nll) )
 generateParams <- function(params, dat, dmat, send="Ki"){
 	## if we request C0 and L using send="Ki" (default)
 	if( send=="Ki" ){
-	## estimate C0 and L, and then mu, and concatenate together as a vector
+	## estimate C0 and L
 	opt <- optim( fn=nllKi, par=params, gr=NULL, dat, dmat, method="Nelder-Mead")#
 	}#
 	if(send=="Mu"){
@@ -172,6 +185,10 @@ generateParams <- function(params, dat, dmat, send="Ki"){
 return(opt)
 }
 
+## 15-03-30
+## using variable C0 to represent seasonality
+## vector for send C0 is now C0spsu C0suau C0ausp L
+#################################################################
 ## Example usage to estimate C0 and L (Where first in vector is C0 and second in vector is L)
 ## pars <- generateParams( params=c(0.01,0.01), dat=trans, dmat, send="Ki")
 ## Example usage to estimate mu
