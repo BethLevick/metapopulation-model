@@ -1,6 +1,6 @@
 ## source functions
 source( "metapopulation-functions_15-01-22.r" )
-###############################################################################################################################
+##########################################################################################################
 ## Set up environment for analysing season by season ##
 # get together the stuff we need from the file
 # generate matrix of unique ids and their occupancy status each season
@@ -74,3 +74,15 @@ losses$fractionlost[k] <- losses$becomelost[k]/losses$occupied[k]
 }
 
 sumfractionlost <- sum(losses$becomelost)/sum(losses$occupied)
+##########################################################################################################
+## run the longterm-setup file to set up the predictive factors for the transitions data set
+#source("longeterm-setup.r")
+## strip the bits we need from the factor_df data frame
+#properties <- data.frame( burrow=factor_df$burrow, lat=factor_df$lat, sand=factor_df$sand, allpl=factor_df$allpl, dunes=factor_df$binfactor3 )
+## save this
+#save( properties, file="burrow-properties.RDa" )
+## and to reload
+load( "burrow-properties.RDa" )
+
+
+
