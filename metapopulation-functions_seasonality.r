@@ -74,15 +74,28 @@ return( abs(ki)/(1+(abs(ki))) )
 nllKi <- function(params, dat, dmat){
 ## set nll to 0
 nll <- 0
+## take the column names from the transitions to data to track the season
+## substring of just the season id (sp, su, au)
+season <- substr( colnames(dat), 5, 6 )
 	## to estimate C0 and L
 	for(i in 1:(ncol(dat)-1)){
 	nll.gen <- 0
+	## pick the C0 value to use based on the season transition
+	if( season[i]=="sp" & season[i+1]=="su" ){
+	C0pos <- 1
+	}
+	if( season[i]=="su" & season[i+1]=="au" ){
+	C0pos <- 2
+	}
+	if( season[i]=="au" & season[i+1]=="sp" ){
+	C0pos <- 3
+	}
 		for(k in 1:length(dat[,i])){
 		## if there is a recording for the burrow
 		if( !is.na(dat[k,i]) ){
 		## if the burrow is current unoccupied, we want ki
 			if( dat[k,i]==0 ){
-			ki <- findKi( dat[,i], dmat, params, i )
+			ki <- findKi( dat[,i], dmat, c(params[C0pos],params[4]), i )
 			Ci <- ki2Ci( ki )
 			#print(ki)
 				## if there is a recording for the same burrow the next generation
@@ -162,7 +175,7 @@ return( -(nll) )
 generateParams <- function(params, dat, dmat, send="Ki"){
 	## if we request C0 and L using send="Ki" (default)
 	if( send=="Ki" ){
-	## estimate C0 and L, and then mu, and concatenate together as a vector
+	## estimate C0 and L
 	opt <- optim( fn=nllKi, par=params, gr=NULL, dat, dmat, method="Nelder-Mead")#
 	}#
 	if(send=="Mu"){
@@ -172,6 +185,10 @@ generateParams <- function(params, dat, dmat, send="Ki"){
 return(opt)
 }
 
+## 15-03-30
+## using variable C0 to represent seasonality
+## vector for send C0 is now C0spsu C0suau C0ausp L
+#################################################################
 ## Example usage to estimate C0 and L (Where first in vector is C0 and second in vector is L)
 ## pars <- generateParams( params=c(0.01,0.01), dat=trans, dmat, send="Ki")
 ## Example usage to estimate mu
@@ -181,7 +198,7 @@ return(opt)
 
 
 #########################################################################	
-nextGen <- function( prev, pars=c(mu,C0,L), dmat ){
+nextGen <- function( prev, pars, dmat ){
 nxt <- vector()
 	## for each burrow in the vector
 	for(i in 1:length(prev)){
@@ -223,7 +240,7 @@ return(nxt)
 ## x <- nextGen( seed, pars=c(mu,C0,L), dmat )	
 	
 #### Functions to run the simulation #######
-metaSim <- function( seed, nruns, ngens, dmat, pars=c(mu,C0,L) ){
+metaSim <- function( seed, nruns, ngens, dmat, pars=c(C0spsu, C0suau, C0ausp, L, mu) ){
 ## set up a list to store results 
 res <- list()
 ## for each run of the model
@@ -233,11 +250,47 @@ for(i in 1:nruns){
 sim <- matrix( ncol=ngens, nrow=length(seed) )
 sim[,1] <- seed
 	## for each generation shift (gens-1)
+	pos <- 0
 	for(k in 2:ngens){
+	pos <- pos + 1
 	## values in the column at k are determined by the column at position k-1
 	## so vals in column k, where k-1==1 (occupied in previous generation)
 	## become extinct with the probability mu
-	sim[,k] <- nextGen( sim[,k-1], pars=pars, dmat )
+	sim[,k] <- nextGen( sim[,k-1], pars=c(pars[pos], pars[4], pars[5]), dmat )
+	
+	if( pos %% 3== 0 ){
+	pos <- 0
+	}
+	}
+res[[i]] <- sim
+}
+return(res)
+}
+
+#### Functions to run the simulation #######
+## the seasonal C0 is assigned at this stage, and then the relevant parameter is sent 
+## to the nextStep() function
+metaSim <- function( seed, nruns, ngens, dmat, pars=c(C0spsu, C0suau, C0ausp, L, mu) ){
+## set up a list to store results 
+res <- list()
+## for each run of the model
+for(i in 1:nruns){
+## set up a matrix to store results, with the seed as the first column
+## col per generation, row per burrow
+sim <- matrix( ncol=ngens, nrow=length(seed) )
+sim[,1] <- seed
+	## for each generation shift (gens-1)
+	pos <- 0
+	for(k in 2:ngens){
+	pos <- pos + 1
+	## values in the column at k are determined by the column at position k-1
+	## so vals in column k, where k-1==1 (occupied in previous generation)
+	## become extinct with the probability mu
+	sim[,k] <- nextGen( sim[,k-1], pars=c(pars[pos], pars[4], pars[5]), dmat )
+	
+	if( pos %% 3== 0 ){
+	pos <- 0
+	}
 	}
 res[[i]] <- sim
 }
@@ -298,20 +351,4 @@ lines( c(1:ncol(trans)), data.summ, col="black" )
 legend( "topleft", legend=c("Simulation", "Empirical data"), col=c("lightpink", "black"), pch=c(16,16), bty="n" )
 }
 
-#########################################################################
-## Estimating seasonal parameters
-## previous model - coefficients and significance for seasons measured
-require("MASS")
-##########################################################################
-### Occupancy ###
-## data set up 
-## ensure data file and set up files stored in same directory as this file ##
-setwd( "C:/Users/Bethany/Dropbox/PhD/PerfectBurrow-RDocs" )	#directory location of files
-#open data
-dat <- read.csv( "kaz_14-04-15.csv", header=T )
-# set up environment for occupancy as a binary response
-source( "occupancy-setup.r" )
-## maintaining same model structure as previously
-model <- glmmPQL( occupied ~ season, random=~1|sector/burrow, family="binomial", data=factor_df )
-
-#########################################################################
+#############################################

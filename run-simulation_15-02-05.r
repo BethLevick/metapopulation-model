@@ -3,7 +3,7 @@
 ##########################################################################################################
 ### to run metapopulation model ###
 ## set up environment, starting with opening working directory and then the data file
-setwd( "C:/Users/Bethany/Dropbox/PhD/occupancy-model/main_R" )
+setwd( "C:/Users/Bethany/Dropbox/PhD/occupancy-model/main_R/meta-model/metapopulation-model" )
 dat <- read.table( "transitions.csv", sep=",", header=T, stringsAsFactors=F, fill=TRUE )
 ## source code to set up data/environment and source functions
 ## will return warnings - this is due to data coercion in generating transitions data frame and is expected
@@ -19,27 +19,31 @@ ngens <- 6
 seed <- trans[,1]
 
 ## estimate parameters
-pars <- generateParams( params=c(0.01,0.01), dat=trans, dmat, send="Ki")
-C0 <- abs(pars$par[1])
-L <- abs(pars$par[2])
+pars <- generateParams( params=c(0.01, 0.01, 0.01,0.01), dat=trans, dmat, send="Ki")
+C0spsu <- abs(pars$par[1])
+C0suau <- abs(pars$par[2])
+C0ausp <- abs(pars$par[3])
+L <- abs(pars$par[4])
 pars <- generateParams( params=0.01, dat=trans, dmat, send="Mu")
 mu <- pars$par[1]
 
 ## save parameters to stop reloading every time
-pars <- c(mu, C0, L)
+pars <- c(mu, C0spsu, C0suau, C0ausp, L)
 save( pars, file="params.vec" )
 
 ### Load previously estimated parameters ####
 load( "params.vec" )
 mu <- pars[1]
-C0 <- pars[2]
-L <- pars[3]
+C0spsu <- pars[2]
+C0suau <- pars[3]
+C0ausp <- pars[4]
+L <- pars[5]
 ##########################################################################################################
 ## run simulation
 ## list where each data frame is a full simulation, each col of which is a generation
 ## there is a data frame for the number of runs (boots) entered as nruns
 results.list <- list()
-results.list <- metaSim( seed, nruns, ngens, dmat, pars=c(mu,C0,L) )
+results.list <- metaSim( seed, nruns, ngens, dmat, pars=c(C0spsu, C0suau, C0ausp, L, mu) )
 ## save results to file
 save(results.list, file=paste( "results", Sys.Date(), sep="_" ))
 runname <- paste( "results", Sys.Date(), sep="_" )

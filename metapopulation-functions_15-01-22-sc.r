@@ -198,7 +198,7 @@ return(opt)
 
 
 #########################################################################	
-nextGen <- function( prev, pars=c(mu,C0,L), dmat ){
+nextGen <- function( prev, pars, dmat ){
 nxt <- vector()
 	## for each burrow in the vector
 	for(i in 1:length(prev)){
@@ -240,7 +240,7 @@ return(nxt)
 ## x <- nextGen( seed, pars=c(mu,C0,L), dmat )	
 	
 #### Functions to run the simulation #######
-metaSim <- function( seed, nruns, ngens, dmat, pars=c(mu,C0,L) ){
+metaSim <- function( seed, nruns, ngens, dmat, pars=c(C0spsu, C0suau, C0ausp, L, mu) ){
 ## set up a list to store results 
 res <- list()
 ## for each run of the model
@@ -250,11 +250,47 @@ for(i in 1:nruns){
 sim <- matrix( ncol=ngens, nrow=length(seed) )
 sim[,1] <- seed
 	## for each generation shift (gens-1)
+	pos <- 0
 	for(k in 2:ngens){
+	pos <- pos + 1
 	## values in the column at k are determined by the column at position k-1
 	## so vals in column k, where k-1==1 (occupied in previous generation)
 	## become extinct with the probability mu
-	sim[,k] <- nextGen( sim[,k-1], pars=pars, dmat )
+	sim[,k] <- nextGen( sim[,k-1], pars=c(pars[pos], pars[4], pars[5]), dmat )
+	
+	if( pos %% 3== 0 ){
+	pos <- 0
+	}
+	}
+res[[i]] <- sim
+}
+return(res)
+}
+
+#### Functions to run the simulation #######
+## the seasonal C0 is assigned at this stage, and then the relevant parameter is sent 
+## to the nextStep() function
+metaSim <- function( seed, nruns, ngens, dmat, pars=c(C0spsu, C0suau, C0ausp, L, mu) ){
+## set up a list to store results 
+res <- list()
+## for each run of the model
+for(i in 1:nruns){
+## set up a matrix to store results, with the seed as the first column
+## col per generation, row per burrow
+sim <- matrix( ncol=ngens, nrow=length(seed) )
+sim[,1] <- seed
+	## for each generation shift (gens-1)
+	pos <- 0
+	for(k in 2:ngens){
+	pos <- pos + 1
+	## values in the column at k are determined by the column at position k-1
+	## so vals in column k, where k-1==1 (occupied in previous generation)
+	## become extinct with the probability mu
+	sim[,k] <- nextGen( sim[,k-1], pars=c(pars[pos], pars[4], pars[5]), dmat )
+	
+	if( pos %% 3== 0 ){
+	pos <- 0
+	}
 	}
 res[[i]] <- sim
 }
